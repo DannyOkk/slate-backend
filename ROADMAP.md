@@ -1,11 +1,11 @@
 # Roadmap - Slate Backend
 
 ## Sprint 1 - Setup & Autenticación + Clientes
-- [ ] `chore/initial-spring-boot-setup`: Estructura inicial de Spring Boot (Web, JPA, Postgres, Security).
-- [ ] `docs/roadmap-and-pr-template`: Agregar ROADMAP.md y plantilla de PR.
-- [ ] `chore/env-and-db-config`: Configuración de PostgreSQL y `.env.example`.
-- [ ] `feat/auth-endpoints`: Endpoints de Registro e Iniciar Sesión con JWT.
-- [ ] `feat/client-crud`: Endpoints CRUD de Clientes asociados al comerciante autenticado.
+- [x] `chore/initial-spring-boot-setup`: Estructura inicial de Spring Boot (Web, JPA, Postgres, Security).
+- [x] `docs/roadmap-and-pr-template`: Agregar ROADMAP.md y plantilla de PR.
+- [x] `chore/env-and-db-config`: Configuración de PostgreSQL y `.env.example`.
+- [x] `feat/auth-endpoints`: Endpoints de Registro e Iniciar Sesión con JWT.
+- [x] `feat/client-crud`: Endpoints CRUD de Clientes asociados al comerciante autenticado.
 
 ## Sprint 2 - Fiados y Pagos
 - [ ] `feat/transactions-crud`: Endpoints para registrar fiados y pagos por cliente.
