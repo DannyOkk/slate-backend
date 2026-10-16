@@ -2,6 +2,7 @@ package com.slate.backend.controller;
 
 import com.slate.backend.dto.ClientRequest;
 import com.slate.backend.dto.ClientResponse;
+import com.slate.backend.dto.DebtorResponse;
 import com.slate.backend.service.ClientService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,8 +15,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -33,6 +36,18 @@ public class ClientController {
     public ResponseEntity<List<ClientResponse>> getAllClients() {
         List<ClientResponse> clients = clientService.getAllClientsForCurrentUser();
         return ResponseEntity.ok(clients);
+    }
+
+    /**
+     * GET /api/clients/debtors
+     * Retorna la lista consolidada de clientes con saldo deudor pendiente ordenados de mayor a menor deuda.
+     */
+    @GetMapping("/debtors")
+    public ResponseEntity<List<DebtorResponse>> getDebtors(
+            @RequestParam(defaultValue = "0.01") BigDecimal minBalance
+    ) {
+        List<DebtorResponse> debtors = clientService.getDebtors(minBalance);
+        return ResponseEntity.ok(debtors);
     }
 
     /**

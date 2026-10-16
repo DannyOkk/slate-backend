@@ -8,8 +8,8 @@
 - [x] `feat/client-crud`: Endpoints CRUD de Clientes asociados al comerciante autenticado.
 
 ## Sprint 2 - Fiados y Pagos
-- [ ] `feat/transactions-crud`: Endpoints para registrar fiados y pagos por cliente.
-- [ ] `feat/client-balance`: Endpoint de saldo acumulado y lista "Quién me debe".
+- [x] `feat/transactions-crud`: Endpoints para registrar fiados y pagos por cliente.
+- [x] `feat/client-balance`: Endpoint de saldo acumulado y lista "Quién me debe".
 
 ## Sprint 3 - Recordatorios y Scoring
 - [ ] `feat/risk-score-engine`: Lógica de puntaje de riesgo por cliente según reglas negocio.
