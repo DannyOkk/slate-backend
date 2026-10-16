@@ -2,10 +2,14 @@ package com.slate.backend.service;
 
 import com.slate.backend.dto.ClientRequest;
 import com.slate.backend.dto.ClientResponse;
+import com.slate.backend.dto.DebtorResponse;
 import com.slate.backend.entity.Client;
+import com.slate.backend.entity.Transaction;
+import com.slate.backend.entity.TransactionType;
 import com.slate.backend.entity.User;
 import com.slate.backend.exception.ResourceNotFoundException;
 import com.slate.backend.repository.ClientRepository;
+import com.slate.backend.repository.TransactionRepository;
 import com.slate.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -13,7 +17,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +32,7 @@ public class ClientService {
 
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
+    private final TransactionRepository transactionRepository;
 
     /**
      * Obtiene el usuario autenticado actual a partir del email presente en el SecurityContext.
@@ -122,5 +134,57 @@ public class ClientService {
                 .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado con id: " + id));
 
         clientRepository.delete(client);
+    }
+
+    /**
+     * Retorna la lista consolidada de clientes con deuda pendiente mayor o igual a minBalance,
+     * ordenados de mayor a menor deuda (totalBalance descendente).
+     */
+    @Transactional(readOnly = true)
+    public List<DebtorResponse> getDebtors(BigDecimal minBalance) {
+        User currentUser = getCurrentUser();
+        BigDecimal threshold = minBalance != null ? minBalance : new BigDecimal("0.01");
+
+        List<Client> clients = clientRepository.findByUserId(currentUser.getId());
+        if (clients.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Carga en una sola consulta todas las transacciones del comerciante ordenadas descendentemente por fecha
+        List<Transaction> transactions = transactionRepository.findByClientUserIdOrderByCreatedAtDesc(currentUser.getId());
+
+        // Agrupa las transacciones por clientId preservando el orden de fecha
+        Map<Long, List<Transaction>> transactionsByClient = transactions.stream()
+                .collect(Collectors.groupingBy(t -> t.getClient().getId()));
+
+        List<DebtorResponse> debtors = new ArrayList<>();
+
+        for (Client client : clients) {
+            List<Transaction> clientTransactions = transactionsByClient.getOrDefault(client.getId(), Collections.emptyList());
+
+            BigDecimal totalBalance = BigDecimal.ZERO;
+            for (Transaction t : clientTransactions) {
+                BigDecimal amount = t.getAmount() != null ? t.getAmount() : BigDecimal.ZERO;
+                if (t.getType() == TransactionType.FIADO) {
+                    totalBalance = totalBalance.add(amount);
+                } else if (t.getType() == TransactionType.PAGO) {
+                    totalBalance = totalBalance.subtract(amount);
+                }
+            }
+
+            if (totalBalance.compareTo(threshold) >= 0) {
+                LocalDateTime lastDate = clientTransactions.isEmpty() ? null : clientTransactions.get(0).getCreatedAt();
+                debtors.add(DebtorResponse.builder()
+                        .clientId(client.getId())
+                        .clientName(client.getName())
+                        .clientPhone(client.getPhone())
+                        .totalBalance(totalBalance)
+                        .lastTransactionDate(lastDate)
+                        .build());
+            }
+        }
+
+        debtors.sort(Comparator.comparing(DebtorResponse::getTotalBalance, Comparator.reverseOrder()));
+        return debtors;
     }
 }
