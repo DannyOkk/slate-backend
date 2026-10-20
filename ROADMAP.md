@@ -13,7 +13,7 @@
 
 ## Sprint 3 - Recordatorios y Scoring
 - [x] `feat/risk-score-engine`: Lógica de puntaje de riesgo por cliente según reglas negocio.
-- [ ] `test/core-services-tests`: Pruebas unitarias básicas de cálculos de saldo y scoring.
+- [x] `test/core-services-tests`: Pruebas unitarias básicas de cálculos de saldo y scoring.
 
 ## Colchón - Ajustes y Entrega
 - [ ] `docs/final-readme`: Documentación de API y setup de desarrollo.
