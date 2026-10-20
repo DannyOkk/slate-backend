@@ -42,6 +42,9 @@ class ClientServiceTest {
     private TransactionRepository transactionRepository;
 
     @Mock
+    private RiskScoreService riskScoreService;
+
+    @Mock
     private SecurityContext securityContext;
 
     @InjectMocks
@@ -196,5 +199,55 @@ class ClientServiceTest {
         assertThat(debtors).hasSize(1);
         assertThat(debtors.get(0).getClientId()).isEqualTo(10L);
         assertThat(debtors.get(0).getTotalBalance()).isEqualByComparingTo("500.00");
+    }
+
+    @Test
+    @DisplayName("getAllClientsForCurrentUser - Incluye totalBalance y riskLevel calculados en lote")
+    void getAllClientsForCurrentUser_includesBalanceAndRisk() {
+        Transaction t1 = Transaction.builder()
+                .id(1L)
+                .client(client1)
+                .amount(new BigDecimal("60000.00"))
+                .type(TransactionType.FIADO)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(userRepository.findByEmail("pepe@comercio.com")).thenReturn(Optional.of(merchantUser));
+        when(clientRepository.findByUserId(1L)).thenReturn(List.of(client1));
+        when(transactionRepository.findByClientUserIdOrderByCreatedAtDesc(1L)).thenReturn(List.of(t1));
+        when(riskScoreService.calculateTotalBalance(List.of(t1))).thenReturn(new BigDecimal("60000.00"));
+        when(riskScoreService.calculateRiskLevel(List.of(t1), new BigDecimal("60000.00"))).thenReturn(com.slate.backend.entity.RiskLevel.ALTO);
+
+        List<com.slate.backend.dto.ClientResponse> response = clientService.getAllClientsForCurrentUser();
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).getId()).isEqualTo(10L);
+        assertThat(response.get(0).getTotalBalance()).isEqualByComparingTo("60000.00");
+        assertThat(response.get(0).getRiskLevel()).isEqualTo(com.slate.backend.entity.RiskLevel.ALTO);
+    }
+
+    @Test
+    @DisplayName("getClientById - Retorna detalle del cliente con totalBalance y riskLevel calculados")
+    void getClientById_includesBalanceAndRisk() {
+        Transaction t = Transaction.builder()
+                .id(1L)
+                .client(client1)
+                .amount(new BigDecimal("500.00"))
+                .type(TransactionType.FIADO)
+                .createdAt(LocalDateTime.now().minusDays(5))
+                .build();
+
+        when(userRepository.findByEmail("pepe@comercio.com")).thenReturn(Optional.of(merchantUser));
+        when(clientRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(client1));
+        when(transactionRepository.findByClientIdOrderByCreatedAtDesc(10L)).thenReturn(List.of(t));
+        when(riskScoreService.calculateTotalBalance(List.of(t))).thenReturn(new BigDecimal("500.00"));
+        when(riskScoreService.calculateRiskLevel(List.of(t), new BigDecimal("500.00"))).thenReturn(com.slate.backend.entity.RiskLevel.MEDIO);
+
+        com.slate.backend.dto.ClientResponse response = clientService.getClientById(10L);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(10L);
+        assertThat(response.getTotalBalance()).isEqualByComparingTo("500.00");
+        assertThat(response.getRiskLevel()).isEqualTo(com.slate.backend.entity.RiskLevel.MEDIO);
     }
 }
