@@ -4,6 +4,7 @@ import com.slate.backend.dto.ClientRequest;
 import com.slate.backend.dto.ClientResponse;
 import com.slate.backend.dto.DebtorResponse;
 import com.slate.backend.entity.Client;
+import com.slate.backend.entity.RiskLevel;
 import com.slate.backend.entity.Transaction;
 import com.slate.backend.entity.TransactionType;
 import com.slate.backend.entity.User;
@@ -33,6 +34,7 @@ public class ClientService {
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
+    private final RiskScoreService riskScoreService;
 
     /**
      * Obtiene el usuario autenticado actual a partir del email presente en el SecurityContext.
@@ -48,45 +50,68 @@ public class ClientService {
     }
 
     /**
-     * Mapea una entidad Client a su DTO ClientResponse.
+     * Mapea una entidad Client a su DTO ClientResponse incluyendo saldo acumulado y nivel de riesgo.
      */
-    private ClientResponse mapToResponse(Client client) {
+    private ClientResponse mapToResponse(Client client, BigDecimal totalBalance, com.slate.backend.entity.RiskLevel riskLevel) {
         return ClientResponse.builder()
                 .id(client.getId())
                 .name(client.getName())
                 .phone(client.getPhone())
                 .address(client.getAddress())
                 .notes(client.getNotes())
+                .totalBalance(totalBalance != null ? totalBalance : BigDecimal.ZERO)
+                .riskLevel(riskLevel != null ? riskLevel : com.slate.backend.entity.RiskLevel.BAJO)
                 .createdAt(client.getCreatedAt())
                 .updatedAt(client.getUpdatedAt())
                 .build();
     }
 
     /**
-     * Obtiene todos los clientes asociados al comerciante autenticado.
+     * Obtiene todos los clientes asociados al comerciante autenticado con su saldo y nivel de riesgo calculados.
      */
     @Transactional(readOnly = true)
     public List<ClientResponse> getAllClientsForCurrentUser() {
         User currentUser = getCurrentUser();
-        return clientRepository.findByUserId(currentUser.getId())
-                .stream()
-                .map(this::mapToResponse)
+        List<Client> clients = clientRepository.findByUserId(currentUser.getId());
+        if (clients.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Carga todas las transacciones del comerciante en una sola consulta para evitar N+1
+        List<Transaction> allTransactions = transactionRepository.findByClientUserIdOrderByCreatedAtDesc(currentUser.getId());
+        Map<Long, List<Transaction>> transactionsByClient = allTransactions.stream()
+                .collect(Collectors.groupingBy(t -> t.getClient().getId()));
+
+        return clients.stream()
+                .map(client -> {
+                    List<Transaction> clientTx = transactionsByClient.getOrDefault(client.getId(), Collections.emptyList());
+                    BigDecimal balance = riskScoreService.calculateTotalBalance(clientTx);
+                    com.slate.backend.entity.RiskLevel risk = riskScoreService.calculateRiskLevel(clientTx, balance);
+                    return mapToResponse(client, balance, risk);
+                })
                 .toList();
     }
 
     /**
-     * Obtiene un cliente por ID asegurando que pertenezca al comerciante autenticado.
+     * Obtiene un cliente por ID asegurando que pertenezca al comerciante autenticado,
+     * calculando su saldo actual y nivel de riesgo crediticio.
      */
     @Transactional(readOnly = true)
     public ClientResponse getClientById(Long id) {
         User currentUser = getCurrentUser();
         Client client = clientRepository.findByIdAndUserId(id, currentUser.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado con id: " + id));
-        return mapToResponse(client);
+
+        List<Transaction> transactions = transactionRepository.findByClientIdOrderByCreatedAtDesc(id);
+        BigDecimal balance = riskScoreService.calculateTotalBalance(transactions);
+        com.slate.backend.entity.RiskLevel risk = riskScoreService.calculateRiskLevel(transactions, balance);
+
+        return mapToResponse(client, balance, risk);
     }
 
     /**
      * Crea un nuevo cliente vinculado al comerciante autenticado.
+     * Al crearse, su saldo es 0 y su riesgo inicial es BAJO.
      */
     @Transactional
     public ClientResponse createClient(ClientRequest request) {
@@ -101,7 +126,7 @@ public class ClientService {
                 .build();
 
         Client saved = clientRepository.save(client);
-        return mapToResponse(saved);
+        return mapToResponse(saved, BigDecimal.ZERO, com.slate.backend.entity.RiskLevel.BAJO);
     }
 
     /**
@@ -120,7 +145,12 @@ public class ClientService {
         client.setNotes(request.getNotes());
 
         Client updated = clientRepository.save(client);
-        return mapToResponse(updated);
+
+        List<Transaction> transactions = transactionRepository.findByClientIdOrderByCreatedAtDesc(id);
+        BigDecimal balance = riskScoreService.calculateTotalBalance(transactions);
+        com.slate.backend.entity.RiskLevel risk = riskScoreService.calculateRiskLevel(transactions, balance);
+
+        return mapToResponse(updated, balance, risk);
     }
 
     /**

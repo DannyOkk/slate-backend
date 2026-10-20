@@ -12,7 +12,7 @@
 - [x] `feat/client-balance`: Endpoint de saldo acumulado y lista "Quién me debe".
 
 ## Sprint 3 - Recordatorios y Scoring
-- [ ] `feat/risk-score-engine`: Lógica de puntaje de riesgo por cliente según reglas negocio.
+- [x] `feat/risk-score-engine`: Lógica de puntaje de riesgo por cliente según reglas negocio.
 - [ ] `test/core-services-tests`: Pruebas unitarias básicas de cálculos de saldo y scoring.
 
 ## Colchón - Ajustes y Entrega
