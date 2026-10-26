@@ -16,5 +16,5 @@
 - [x] `test/core-services-tests`: Pruebas unitarias básicas de cálculos de saldo y scoring.
 
 ## Colchón - Ajustes y Entrega
-- [ ] `docs/final-readme`: Documentación de API y setup de desarrollo.
+- [x] `docs/final-readme`: Documentación de API y setup de desarrollo.
 - [ ] `fix/pre-demo-adjustments`: Correcciones finales detectadas en pruebas integradas.
