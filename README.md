@@ -167,7 +167,8 @@ slate-backend/
 
 ## API Reference
 
-Todos los endpoints (excepto `/api/auth/**`) requieren autenticación JWT.
+Todos los endpoints requieren autenticación JWT, excepto `POST /api/auth/register` y
+`POST /api/auth/login`.
 
 **Header requerido para endpoints protegidos:**
 ```
@@ -232,6 +233,71 @@ Endpoints públicos. No requieren token.
 |---|---|
 | `200` | Login exitoso. Devuelve el JWT. |
 | `401` | Credenciales incorrectas. |
+
+---
+
+#### `GET /api/auth/profile`
+
+Requiere un JWT válido y devuelve los datos personales del usuario
+autenticado, sin incluir la contraseña.
+
+**Response `200 OK`:**
+```json
+{
+  "id": 1,
+  "name": "Juan García",
+  "email": "juan@kiosco.com",
+  "phone": "+54 9 11 1234-5678"
+}
+```
+
+---
+
+#### `PUT /api/auth/profile`
+
+Requiere un JWT válido. Actualiza únicamente los datos personales del usuario
+autenticado.
+
+**Request body:**
+```json
+{
+  "name": "Nuevo nombre",
+  "email": "nuevo@email.com",
+  "phone": "+54 9 11 1234-5678"
+}
+```
+
+**Response `200 OK`:**
+```json
+{
+  "id": 1,
+  "name": "Nuevo nombre",
+  "email": "nuevo@email.com",
+  "phone": "+54 9 11 1234-5678"
+}
+```
+
+La respuesta nunca incluye la contraseña. Si cambia el email, el JWT actual
+deja de ser válido y se debe iniciar sesión nuevamente para obtener un token
+actualizado.
+
+---
+
+#### `PUT /api/auth/password`
+
+Requiere un JWT válido y cambia la contraseña del usuario autenticado.
+
+**Request body:**
+```json
+{
+  "currentPassword": "contraseña-actual",
+  "newPassword": "nueva-contraseña"
+}
+```
+
+Responde `204 No Content` cuando el cambio es exitoso. La nueva contraseña
+debe tener al menos seis caracteres, ser diferente de la actual y nunca se
+devuelve ni se registra.
 
 ---
 
